@@ -3,5 +3,13 @@
   "framework": "nextjs",
   "buildCommand": "npm --prefix RehabTrack run build",
   "devCommand": "npm --prefix RehabTrack run dev",
-  "installCommand": "npm install --prefix RehabTrack"
+  "installCommand": "npm install --prefix RehabTrack",
+  "headers": [
+    {
+      "source": "/dashboard",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
 }
