@@ -1,1 +1,76 @@
-'use client';import Shell from './Shell';import {useCallback,useEffect,useMemo,useState} from 'react';import {createClient} from '@/lib/supabase/client';import {Plus,Search,Trash2} from 'lucide-react';type Field={name:string;label:string;type?:string;required?:boolean;options?:string[]};export default function Records({title,table,button,fields}:{title:string;table:string;button:string;fields:Field[]}){const[rows,setRows]=useState<Record<string,any>[]>([]),[show,setShow]=useState(false),[error,setError]=useState(''),[q,setQ]=useState(''),[busy,setBusy]=useState(false);const load=useCallback(async()=>{const{data,error}=await createClient().from(table).select('*').order('created_at',{ascending:false});if(error)setError(error.message);else setRows(data||[])},[table]);useEffect(()=>{load()},[load]);const filtered=useMemo(()=>rows.filter(r=>JSON.stringify(r).toLowerCase().includes(q.toLowerCase())),[rows,q]);async function save(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);const f=new FormData(e.currentTarget);const payload=Object.fromEntries(fields.map(x=>[x.name,f.get(x.name)===''?null:f.get(x.name)]));const{error}=await createClient().from(table).insert(payload);if(error)setError(error.message);else{setShow(false);await load()}setBusy(false)}async function remove(id:string){if(!confirm('Delete this record?'))return;const{error}=await createClient().from(table).delete().eq('id',id);if(error)setError(error.message);else load()}return <Shell title={title}><div className="flex flex-wrap gap-3 justify-between mb-6"><div className="relative"><Search className="absolute left-3 top-3" size={18}/><input value={q} onChange={e=>setQ(e.target.value)} className="input pl-10" placeholder={`Search ${title.toLowerCase()}`}/></div><button type="button" onClick={()=>setShow(true)} className="btn btn-primary"><Plus size={18}/>{button}</button></div>{error&&<div role="alert" className="p-3 bg-amber-50 text-amber-800 rounded mb-4">{error}</div>}<div className="card overflow-hidden"><div className="p-5 font-bold border-b">{title} records</div>{filtered.length===0?<div className="p-12 text-center text-slate-500">No records yet. Use “{button}” to create the first one.</div>:filtered.map(x=><div key={x.id} className="p-5 border-b last:border-0 flex justify-between gap-4"><div><b>{x.name||x.title||x.assessment_type||'Record'}</b><div className="text-sm text-slate-500">{x.status||new Date(x.created_at).toLocaleDateString()}</div></div><div className="flex items-center gap-3"><span className="badge bg-emerald-50 text-green">{x.risk_level||x.priority||'Active'}</span><button type="button" aria-label="Delete" onClick={()=>remove(x.id)}><Trash2 size={18}/></button></div></div>)}</div>{show&&<div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4"><form onSubmit={save} className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-auto"><h2 className="text-2xl font-black mb-5">{button}</h2><div className="grid md:grid-cols-2 gap-4">{fields.map(x=><div key={x.name} className={x.type==='textarea'?'md:col-span-2':''}><label className="label">{x.label}</label>{x.options?<select className="input" name={x.name} required={x.required}><option value="">Select</option>{x.options.map(o=><option key={o}>{o}</option>)}</select>:x.type==='textarea'?<textarea className="input min-h-24" name={x.name}/>:<input className="input" name={x.name} type={x.type||'text'} min={x.type==='number'?0:undefined} max={x.type==='number'?100:undefined} required={x.required}/>}</div>)}</div><div className="flex gap-3 justify-end mt-6"><button type="button" className="btn btn-secondary" onClick={()=>setShow(false)}>Cancel</button><button disabled={busy} className="btn btn-primary">{busy?'Saving...':'Save'}</button></div></form></div>}</Shell>}
+'use client';
+
+import Shell from './Shell';
+import {useCallback,useEffect,useMemo,useState} from 'react';
+import {createClient} from '@/lib/supabase/client';
+import {Plus,Search,Trash2,Pencil, X} from 'lucide-react';
+
+type Field={name:string;label:string;type?:string;required?:boolean;options?:string[]};
+type Row=Record<string,unknown>&{id:string;created_at?:string};
+
+export default function Records({title,table,button,fields}:{title:string;table:string;button:string;fields:Field[]}){
+ const[rows,setRows]=useState<Row[]>([]);
+ const[editing,setEditing]=useState<Row|null>(null);
+ const[show,setShow]=useState(false);
+ const[error,setError]=useState('');
+ const[q,setQ]=useState('');
+ const[busy,setBusy]=useState(false);
+ const load=useCallback(async()=>{
+  const{data,error}=await createClient().from(table).select('*').order('created_at',{ascending:false});
+  if(error)setError(error.message);else setRows((data||[]) as Row[]);
+ },[table]);
+ useEffect(()=>{void load()},[load]);
+ const filtered=useMemo(()=>rows.filter(row=>JSON.stringify(row).toLowerCase().includes(q.toLowerCase())),[rows,q]);
+ function openNew(){setEditing(null);setError('');setShow(true)}
+ function openEdit(row:Row){setEditing(row);setError('');setShow(true)}
+ function close(){if(!busy)setShow(false)}
+ async function save(event:React.FormEvent<HTMLFormElement>){
+  event.preventDefault();setBusy(true);setError('');
+  const form=new FormData(event.currentTarget);
+  const payload=Object.fromEntries(fields.map(field=>{
+   const value=form.get(field.name);
+   if(value===null||value==='')return[field.name,null];
+   return[field.name,field.type==='number'?Number(value):value];
+  }));
+  const db=createClient();
+  const result=editing?await db.from(table).update(payload).eq('id',editing.id):await db.from(table).insert(payload);
+  if(result.error)setError(result.error.message);
+  else{setShow(false);setEditing(null);await load()}
+  setBusy(false);
+ }
+ async function remove(id:string){
+  if(!confirm('Delete this record?'))return;
+  const{error}=await createClient().from(table).delete().eq('id',id);
+  if(error)setError(error.message);else await load();
+ }
+ function fieldValue(field:Field){
+  const value=editing?.[field.name];
+  if(value===null||value===undefined)return '';
+  if(field.type==='date')return String(value).slice(0,10);
+  return String(value);
+ }
+ return <Shell title={title}>
+  <div className="mb-6 flex flex-wrap justify-between gap-3">
+   <div className="relative"><Search className="absolute left-3 top-3 text-slate-400" size={18}/><input value={q} onChange={event=>setQ(event.target.value)} className="input pl-10" placeholder={`Search ${title.toLowerCase()}`}/></div>
+   <button type="button" onClick={openNew} className="btn btn-primary"><Plus size={18}/>{button}</button>
+  </div>
+  {error&&<div role="alert" className="mb-4 rounded bg-amber-50 p-3 text-amber-800">{error}</div>}
+  <div className="card overflow-hidden"><div className="border-b p-5 font-bold">{title} records</div>
+   {filtered.length===0?<div className="p-12 text-center text-slate-500">No records yet. Use “{button}” to create the first one.</div>:filtered.map(row=><div key={row.id} className="flex items-center justify-between gap-4 border-b p-5 last:border-0">
+    <div className="min-w-0"><b className="block truncate">{String(row.name||row.title||row.assessment_type||'Record')}</b><div className="mt-1 text-sm text-slate-500">{String(row.status||row.stage||row.priority||row.created_at||'')}</div></div>
+    <div className="flex shrink-0 items-center gap-2"><button type="button" onClick={()=>openEdit(row)} className="btn btn-secondary" aria-label={`Edit ${String(row.name||row.title||row.assessment_type||'record')}`}><Pencil size={16}/>Edit</button><button type="button" onClick={()=>remove(row.id)} aria-label="Delete record" className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={18}/></button></div>
+   </div>)}
+  </div>
+  {show&&<div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}>
+   <form key={editing?.id||'new'} onSubmit={save} className="card my-6 w-full max-w-3xl overflow-auto p-6" style={{maxHeight:'90vh'}}>
+    <div className="mb-5 flex items-center justify-between"><h2 className="text-2xl font-black">{editing?'Edit':'Create'} {title.replace(/s$/,'')}</h2><button type="button" onClick={close} aria-label="Close form"><X/></button></div>
+    {error&&<div role="alert" className="mb-4 rounded bg-amber-50 p-3 text-amber-800">{error}</div>}
+    <div className="grid gap-4 md:grid-cols-2">{fields.map(field=><div key={field.name} className={field.type==='textarea'?'md:col-span-2':''}>
+     <label className="label" htmlFor={`record-${field.name}`}>{field.label}</label>
+     {field.options?<select id={`record-${field.name}`} className="input" name={field.name} required={field.required} defaultValue={fieldValue(field)}><option value="">Select</option>{field.options.map(option=><option key={option} value={option}>{option}</option>)}</select>:field.type==='textarea'?<textarea id={`record-${field.name}`} className="input min-h-24" name={field.name} required={field.required} defaultValue={fieldValue(field)}/>:<input id={`record-${field.name}`} className="input" name={field.name} type={field.type||'text'} min={field.type==='number'?0:undefined} max={field.type==='number'?100:undefined} required={field.required} defaultValue={fieldValue(field)}/>}
+    </div>)}</div>
+    <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={close} disabled={busy} className="btn btn-secondary">Cancel</button><button disabled={busy} className="btn btn-primary">{busy?'Saving…':editing?'Save changes':'Save'}</button></div>
+   </form>
+  </div>}
+ </Shell>
+}
