@@ -1,1 +1,5 @@
-// Deployment refresh marker: v7c29aaa-redesign
+```text name=DEPLOYMENT.txt
+RehabTrack latest dashboard build: 36f038a
+Vercel app directory: RehabTrack
+Cache refresh: enabled
+```

@@ -1,15 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "npm --prefix RehabTrack run build",
-  "devCommand": "npm --prefix RehabTrack run dev",
+  "framework": null,
   "installCommand": "npm install --prefix RehabTrack",
+  "buildCommand": "npm run build --prefix RehabTrack",
+  "outputDirectory": "RehabTrack/.next",
   "headers": [
-    {
-      "source": "/dashboard",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
-      ]
-    }
+    { "source": "/dashboard", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }] }
   ]
 }
