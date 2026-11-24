@@ -1,1 +1,21 @@
-import Records from '@/components/Records';export default function Page(){return <Records title="Sites" table="sites" button="Register Site" fields={[{name:'name',label:'Site name',required:true},{name:'operator',label:'Operator'},{name:'country',label:'Country'},{name:'region',label:'Region'},{name:'commodity',label:'Commodity'},{name:'total_area',label:'Total area (ha)',type:'number'},{name:'disturbed_area',label:'Disturbed area (ha)',type:'number'},{name:'rehabilitation_target_area',label:'Target area (ha)',type:'number'},{name:'stage',label:'Stage',options:['Planning','Active rehabilitation','Monitoring','Verified']},{name:'start_date',label:'Start date',type:'date'},{name:'target_completion_date',label:'Target completion',type:'date'},{name:'site_manager',label:'Site manager'},{name:'description',label:'Description',type:'textarea'}]}/>}
+import Records from '@/components/Records';
+
+export default function Page(){
+ return <Records title="Sites" table="sites" button="Register Site" fields={[
+  {name:'name',label:'Site name',required:true},
+  {name:'operator',label:'Operator'},
+  {name:'country',label:'Country'},
+  {name:'region',label:'Region'},
+  {name:'commodity',label:'Commodity'},
+  {name:'latitude',label:'Latitude',type:'number'},
+  {name:'longitude',label:'Longitude',type:'number'},
+  {name:'total_area',label:'Total area (ha)',type:'number'},
+  {name:'disturbed_area',label:'Disturbed area (ha)',type:'number'},
+  {name:'rehabilitation_target_area',label:'Target area (ha)',type:'number'},
+  {name:'stage',label:'Stage',options:['Planning','Active rehabilitation','Monitoring','Verified']},
+  {name:'start_date',label:'Start date',type:'date'},
+  {name:'target_completion_date',label:'Target completion',type:'date'},
+  {name:'site_manager',label:'Site manager'},
+  {name:'description',label:'Description',type:'textarea'}
+ ]}/>
+}
