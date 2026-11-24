@@ -1,0 +1,1 @@
+import './globals.css';export const metadata={title:'RehabTrack',description:'From degraded land to verified recovery.'};export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body>{children}</body></html>}

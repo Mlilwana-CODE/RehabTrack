@@ -1,0 +1,1 @@
+import type {Config} from 'tailwindcss';export default {content:['./app/**/*.{ts,tsx}','./components/**/*.{ts,tsx}'],theme:{extend:{colors:{forest:'#123E31',green:'#1F6B4F',copper:'#B87333',mist:'#F4F7F5'}}},plugins:[]} satisfies Config;
