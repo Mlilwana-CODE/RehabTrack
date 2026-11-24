@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm --prefix RehabTrack run build",
+  "devCommand": "npm --prefix RehabTrack run dev",
+  "installCommand": "npm install --prefix RehabTrack"
+}

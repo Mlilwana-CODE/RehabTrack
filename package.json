@@ -1,0 +1,1 @@
+{"name":"rehabtrack-deployment","private":true,"scripts":{"build":"npm --prefix RehabTrack run build","dev":"npm --prefix RehabTrack run dev","start":"npm --prefix RehabTrack run start","typecheck":"npm --prefix RehabTrack run typecheck"}}
