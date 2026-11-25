@@ -2,22 +2,16 @@
 
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {ArrowRight, Images} from 'lucide-react';
-import DashboardInsights from '@/components/DashboardInsights';
-import RehabilitationProgressWidget from '@/components/RehabilitationProgressWidget';
+import {Images, ListChecks} from 'lucide-react';
 
 export default function RehabilitationLayout({children}:{children:React.ReactNode}){
  const pathname=usePathname();
- const isGallery=pathname==='/rehabilitation/before-after';
- return <>
-  <div className="mx-auto mb-5 max-w-7xl space-y-4">
-   <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-    <div><p className="font-bold text-emerald-950">Rehabilitation monitoring</p><p className="text-sm text-emerald-800">Manage rehabilitation actions and visual recovery evidence.</p></div>
-    <Link href={isGallery?'/rehabilitation':'/rehabilitation/before-after'} className="btn btn-secondary"><Images size={16}/>{isGallery?'Rehabilitation actions':'Before & After gallery'}<ArrowRight size={14}/></Link>
-   </div>
-   <DashboardInsights/>
-   <RehabilitationProgressWidget/>
-  </div>
+ const gallery=pathname=== '/rehabilitation/before-after';
+ return <div className="mx-auto max-w-7xl">
+  <nav aria-label="Rehabilitation sections" className="mb-4 flex items-center gap-1 border-b border-slate-200">
+   <Link href="/rehabilitation" className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold ${!gallery?'border-emerald-700 text-emerald-900':'border-transparent text-slate-500 hover:text-slate-800'}`}><ListChecks size={16}/>Actions</Link>
+   <Link href="/rehabilitation/before-after" className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold ${gallery?'border-emerald-700 text-emerald-900':'border-transparent text-slate-500 hover:text-slate-800'}`}><Images size={16}/>Before &amp; After</Link>
+  </nav>
   {children}
- </>
+ </div>
 }
