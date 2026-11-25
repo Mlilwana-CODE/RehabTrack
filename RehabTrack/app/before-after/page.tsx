@@ -1,2 +1,2 @@
 import {redirect} from 'next/navigation';
-export default function LegacyBeforeAfterPage(){redirect('/rehabilitation/before-after')}
+export default function LegacyBeforeAfterPage(){redirect('/rehabilitation')}
