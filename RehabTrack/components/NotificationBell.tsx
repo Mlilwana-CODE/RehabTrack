@@ -2,58 +2,18 @@
 
 import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
-import {Bell,CheckCircle2,TriangleAlert,Clock3} from 'lucide-react';
+import {Bell,CheckCircle2,TriangleAlert,Clock3,Filter,CheckCheck} from 'lucide-react';
 import {createClient} from '@/lib/supabase/client';
 
-type Notice={id:string,title:string,detail:string,href:string,kind:'risk'|'overdue'|'assessment'};
-
+type Notice={id:string,title:string,detail:string,href:string,kind:'risk'|'overdue'|'assessment',read:boolean,createdAt:string};
+const STORAGE_KEY='rehabtrack.notifications.read.v1';
 export default function NotificationBell(){
- const[open,setOpen]=useState(false);
- const[notices,setNotices]=useState<Notice[]>([]);
- const root=useRef<HTMLDivElement>(null);
-
- useEffect(()=>{
-  (async()=>{
-   const db=createClient();
-   const today=new Date().toISOString().slice(0,10);
-   const[{data:actions},{data:assessments}]=await Promise.all([
-    db.from('rehabilitation_actions').select('id,title,status,priority,due_date').limit(100),
-    db.from('assessments').select('id,assessment_type,assessment_date,status').order('assessment_date',{ascending:false}).limit(5)
-   ]);
-   const next:Notice[]=[];
-   for(const action of actions||[]){
-    if(action.status==='Blocked'||action.priority==='Critical'||action.priority==='High'){
-     next.push({id:action.id,title:action.title||'Priority action',detail:action.status==='Blocked'?'This action is blocked':`${action.priority} priority`,href:'/rehabilitation',kind:'risk'});
-    }else if(action.due_date&&action.due_date<today&&action.status!=='Completed'&&action.status!=='Verified'){
-     next.push({id:action.id,title:action.title||'Overdue action',detail:`Due ${new Date(action.due_date).toLocaleDateString()}`,href:'/rehabilitation',kind:'overdue'});
-    }
-   }
-   for(const assessment of assessments||[]){
-    if(assessment.status==='Action needed'||assessment.status==='Requires review'){
-     next.push({id:assessment.id,title:assessment.assessment_type||'Assessment',detail:assessment.status||'Review required',href:'/assessments',kind:'assessment'});
-    }
-   }
-   setNotices(next.slice(0,8));
-  })();
- },[]);
-
- useEffect(()=>{
-  const close=(event:MouseEvent)=>{if(root.current&&!root.current.contains(event.target as Node))setOpen(false)};
-  document.addEventListener('mousedown',close);
-  return ()=>document.removeEventListener('mousedown',close);
- },[]);
-
- return <div ref={root} className="relative">
-  <button type="button" aria-label="Notifications" aria-expanded={open} onClick={()=>setOpen(value=>!value)} className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-   <Bell size={20}/>
-   {notices.length>0&&<span className="absolute -right-1 -top-1 grid min-w-5 h-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white">{notices.length}</span>}
-  </button>
-  {open&&<div className="absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-   <div className="flex items-center justify-between border-b px-4 py-3"><b>Notifications</b><span className="text-xs text-slate-500">{notices.length} new</span></div>
-   {notices.length? <div className="max-h-96 overflow-y-auto">{notices.map(notice=><Link key={notice.id} href={notice.href} onClick={()=>setOpen(false)} className="flex gap-3 border-b px-4 py-3 last:border-0 hover:bg-slate-50">
-    <span className={`mt-0.5 ${notice.kind==='overdue'?'text-amber-600':'text-red-600'}`}>{notice.kind==='assessment'?<CheckCircle2 size={18}/>:notice.kind==='overdue'?<Clock3 size={18}/>:<TriangleAlert size={18}/>}</span>
-    <span><b className="block text-sm">{notice.title}</b><span className="text-xs text-slate-500">{notice.detail}</span></span>
-   </Link>)}</div>:<div className="px-4 py-8 text-center text-sm text-slate-500">No active notifications.</div>}
-  </div>}
- </div>
+ const[open,setOpen]=useState(false),[notices,setNotices]=useState<Notice[]>([]),[filter,setFilter]=useState('all');const root=useRef<HTMLDivElement>(null);
+ const load=async()=>{const db=createClient(),today=new Date().toISOString().slice(0,10);const[{data:actions},{data:assessments}]=await Promise.all([db.from('rehabilitation_actions').select('id,title,status,priority,due_date,updated_at').limit(100),db.from('assessments').select('id,assessment_type,assessment_date,status,updated_at').order('assessment_date',{ascending:false}).limit(20)]);let readIds:string[]=[];try{readIds=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]')}catch{}const next:Notice[]=[];for(const action of actions||[]){if(action.status==='Blocked'||action.priority==='Critical'||action.priority==='High')next.push({id:`action-${action.id}`,title:action.title||'Priority action',detail:action.status==='Blocked'?'This action is blocked':`${action.priority} priority`,href:`/rehabilitation?edit=${action.id}`,kind:'risk',read:false,createdAt:action.updated_at||today});else if(action.due_date&&action.due_date<today&&action.status!=='Completed'&&action.status!=='Verified')next.push({id:`due-${action.id}`,title:action.title||'Overdue action',detail:`Due ${new Date(action.due_date).toLocaleDateString()}`,href:`/rehabilitation?edit=${action.id}`,kind:'overdue',read:false,createdAt:action.due_date})}for(const assessment of assessments||[])if(assessment.status==='Action needed'||assessment.status==='Requires review')next.push({id:`assessment-${assessment.id}`,title:assessment.assessment_type||'Assessment',detail:assessment.status,href:`/assessments?edit=${assessment.id}`,kind:'assessment',read:false,createdAt:assessment.updated_at||today});next.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));setNotices(next.map(n=>({...n,read:readIds.includes(n.id)})).slice(0,50))};
+ useEffect(()=>{void load();const close=(event:MouseEvent)=>{if(root.current&&!root.current.contains(event.target as Node))setOpen(false)};document.addEventListener('mousedown',close);return()=>document.removeEventListener('mousedown',close)},[]);
+ const unread=notices.filter(n=>!n.read).length,shown=notices.filter(n=>filter==='all'||(filter==='unread'?!n.read:n.kind===filter));
+ function markRead(id:string){const ids=new Set<string>();try{for(const value of JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'))ids.add(value)}catch{}ids.add(id);localStorage.setItem(STORAGE_KEY,JSON.stringify([...ids]));setNotices(items=>items.map(n=>n.id===id?{...n,read:true}:n))}
+ function markAll(){localStorage.setItem(STORAGE_KEY,JSON.stringify(notices.map(n=>n.id)));setNotices(items=>items.map(n=>({...n,read:true})))}
+ return <div ref={root} className="relative"><button type="button" aria-label={`Notifications, ${unread} unread`} aria-expanded={open} onClick={()=>setOpen(value=>!value)} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-slate-100"><Bell size={20}/>{unread>0&&<span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white">{unread}</span>}</button>
+ {open&&<div className="absolute right-0 top-12 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"><div className="flex items-center justify-between border-b px-4 py-3"><div><b>Notifications</b><div className="text-xs text-slate-500">{unread} unread · history kept on this device</div></div><button type="button" onClick={markAll} className="flex items-center gap-1 text-xs text-teal-800"><CheckCheck size={15}/>Mark all read</button></div><div className="flex items-center gap-2 border-b px-3 py-2"><Filter size={14}/><select aria-label="Filter notifications" value={filter} onChange={e=>setFilter(e.target.value)} className="w-full text-xs"><option value="all">All notifications</option><option value="unread">Unread</option><option value="risk">Risks</option><option value="overdue">Overdue</option><option value="assessment">Assessments</option></select></div><div className="max-h-80 overflow-y-auto">{shown.length?shown.map(notice=><div key={notice.id} className={`flex gap-2 border-b px-3 py-3 ${notice.read?'opacity-60':'bg-emerald-50/40'}`}><span className="mt-1">{notice.kind==='assessment'?<CheckCircle2 size={17}/>:notice.kind==='overdue'?<Clock3 size={17}/>:<TriangleAlert size={17}/>}</span><Link href={notice.href} onClick={()=>{markRead(notice.id);setOpen(false)}} className="min-w-0 flex-1"><b className="block truncate text-sm">{notice.title}</b><span className="text-xs text-slate-500">{notice.detail}</span></Link>{!notice.read&&<button type="button" aria-label="Mark as read" onClick={()=>markRead(notice.id)} className="self-center text-xs text-teal-800">Read</button>}</div>):<div className="px-4 py-8 text-center text-sm text-slate-500">No notifications in this filter.</div>}</div><button type="button" onClick={()=>void load()} className="w-full border-t p-2 text-xs text-teal-800">Refresh history</button></div>}</div>
 }

@@ -1,75 +1,17 @@
 'use client';
 
 import {useEffect,useRef} from 'react';
+import {MapPin,Plus,Minus,LocateFixed,Maximize2} from 'lucide-react';
 
-export type MapSite={id:string,name:string,stage:string|null,latitude:number|string|null,longitude:number|string|null};
-
+type MapSite={id:string;name:string;stage:string|null;latitude:number|string|null;longitude:number|string|null;disturbed_area?:number|null};
 declare global {interface Window {L?:any}}
-
 export default function RecoveryMap({sites}:{sites:MapSite[]}){
- const ref=useRef<HTMLDivElement>(null);
- const mapRef=useRef<any>(null);
-
- useEffect(()=>{
-  const points=sites.map(site=>({
-   ...site,
-   lat:Number(site.latitude),
-   lng:Number(site.longitude)
-  })).filter(site=>Number.isFinite(site.lat)&&Number.isFinite(site.lng)&&Math.abs(site.lat)<=90&&Math.abs(site.lng)<=180);
-
-  if(!ref.current||!points.length)return;
-
-  const ensureStyle=()=>{
-   if(document.querySelector('link[data-rehabtrack-map]'))return;
-   const link=document.createElement('link');
-   link.rel='stylesheet';
-   link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-   link.dataset.rehabtrackMap='true';
-   document.head.appendChild(link);
-  };
-
-  const initialise=()=>{
-   const L=window.L;
-   if(!L||!ref.current)return;
-
-   ensureStyle();
-   if(mapRef.current){mapRef.current.remove();mapRef.current=null}
-
-   const map=L.map(ref.current,{scrollWheelZoom:false,zoomControl:true});
-   mapRef.current=map;
-   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(map);
-
-   const markers=points.map((site)=>L.marker([site.lat,site.lng])
-    .addTo(map)
-    .bindPopup(`<b>${escapeHtml(site.name)}</b><br>${escapeHtml(site.stage||'Stage not specified')}`));
-
-   if(markers.length===1){map.setView([points[0].lat,points[0].lng],12)}
-   else{map.fitBounds(markers.map((marker:any)=>marker.getLatLng()),{padding:[35,35],maxZoom:12})}
-
-   requestAnimationFrame(()=>{map.invalidateSize();});
-  };
-
-  ensureStyle();
-  if(window.L)initialise();
-  else{
-   const existing=document.querySelector<HTMLScriptElement>('script[data-rehabtrack-map-js]');
-   if(existing){existing.addEventListener('load',initialise,{once:true});}
-   else{
-    const script=document.createElement('script');
-    script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.async=true;
-    script.dataset.rehabtrackMapJs='true';
-    script.onload=initialise;
-    document.body.appendChild(script);
-   }
-  }
- },[sites]);
-
- useEffect(()=>()=>{if(mapRef.current){mapRef.current.remove();mapRef.current=null}},[]);
-
- const count=sites.map(site=>({lat:Number(site.latitude),lng:Number(site.longitude)})).filter(site=>Number.isFinite(site.lat)&&Number.isFinite(site.lng)&&Math.abs(site.lat)<=90&&Math.abs(site.lng)<=180).length;
- if(!count)return <div className="h-[360px] grid place-items-center rounded-xl bg-slate-50 text-slate-500 text-center px-6">No mapped sites yet.<br/><span className="text-sm">Add valid latitude and longitude values to a site.</span></div>;
- return <div ref={ref} className="h-[360px] rounded-xl z-0" aria-label="Map of rehabilitation sites"/>;
+ const ref=useRef<HTMLDivElement>(null),mapRef=useRef<any>(null),sitesRef=useRef(sites);
+ useEffect(()=>{sitesRef.current=sites;if(mapRef.current){mapRef.current.eachLayer((layer:any)=>{if(layer.__siteMarker)mapRef.current.removeLayer(layer)});const L=window.L;const points=sites.map(site=>({...site,lat:Number(site.latitude),lng:Number(site.longitude)}).filter?null:null);void points;const markers=sites.map(site=>{const lat=Number(site.latitude),lng=Number(site.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return null;const marker=L.marker([lat,lng]).addTo(mapRef.current);marker.__siteMarker=true;marker.bindPopup(`<b>${escapeHtml(site.name)}</b><br>${escapeHtml(site.stage||'Stage not specified')}<br>${Number(site.disturbed_area)||0} ha disturbed<br><a href="/sites?edit=${encodeURIComponent(site.id)}">View / edit site</a>`);return marker}).filter(Boolean);if(markers.length===1)mapRef.current.setView(markers[0].getLatLng(),12);else if(markers.length)mapRef.current.fitBounds(L.featureGroup(markers).getBounds(),{padding:[25,25],maxZoom:12});return}},[sites]);
+ useEffect(()=>{if(!ref.current)return;const style=document.createElement('link');style.rel='stylesheet';style.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(style);const init=()=>{if(!window.L||!ref.current||mapRef.current)return;const L=window.L;const map=L.map(ref.current,{scrollWheelZoom:false,zoomControl:false});mapRef.current=map;L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(map);const points=sitesRef.current.map(site=>({...site,lat:Number(site.latitude),lng:Number(site.longitude)})).filter(site=>Number.isFinite(site.lat)&&Number.isFinite(site.lng)&&Math.abs(site.lat)<=90&&Math.abs(site.lng)<=180);for(const site of points){const marker=L.marker([site.lat,site.lng]).addTo(map);marker.__siteMarker=true;marker.bindPopup(`<b>${escapeHtml(site.name)}</b><br>${escapeHtml(site.stage||'Stage not specified')}<br>${Number(site.disturbed_area)||0} ha disturbed<br><a href="/sites?edit=${encodeURIComponent(site.id)}">View / edit site</a>`)}if(points.length===1)map.setView([points[0].lat,points[0].lng],12);else if(points.length)map.fitBounds(L.latLngBounds(points.map(site=>[site.lat,site.lng])),{padding:[25,25],maxZoom:12});else map.setView([-29,24],5);requestAnimationFrame(()=>map.invalidateSize())};if(window.L)init();else{const script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';script.async=true;script.onload=init;document.body.appendChild(script)}return()=>{if(mapRef.current){mapRef.current.remove();mapRef.current=null}style.remove()}},[]);
+ const locate=()=>{if(!navigator.geolocation){alert('Location is not available in this browser.');return}navigator.geolocation.getCurrentPosition(position=>mapRef.current?.setView([position.coords.latitude,position.coords.longitude],14),()=>alert('Could not get your current location.'))};
+ const fullscreen=async()=>{if(!ref.current)return;if(document.fullscreenElement)await document.exitFullscreen();else await ref.current.requestFullscreen()};
+ const valid=sites.some(site=>Number.isFinite(Number(site.latitude))&&Number.isFinite(Number(site.longitude)));
+ return <div className="relative overflow-hidden rounded-xl"><div ref={ref} className="h-[320px] w-full bg-slate-100" aria-label="Interactive map of rehabilitation sites"/><div className="absolute left-3 top-3 z-[500] grid gap-1"><button type="button" aria-label="Zoom in" onClick={()=>mapRef.current?.zoomIn()} className="grid h-9 w-9 place-items-center rounded bg-white shadow"><Plus size={17}/></button><button type="button" aria-label="Zoom out" onClick={()=>mapRef.current?.zoomOut()} className="grid h-9 w-9 place-items-center rounded bg-white shadow"><Minus size={17}/></button><button type="button" aria-label="Reset map view" onClick={()=>{const map=mapRef.current;if(!map)return;const L=window.L;const points=sitesRef.current.map(s=>[Number(s.latitude),Number(s.longitude)]).filter(([lat,lng])=>Number.isFinite(lat)&&Number.isFinite(lng));if(points.length===1)map.setView(points[0],12);else if(points.length)map.fitBounds(L.latLngBounds(points),{padding:[25,25],maxZoom:12});else map.setView([-29,24],5)}} className="mt-1 grid h-9 w-9 place-items-center rounded bg-white text-teal-900 shadow"><MapPin size={17}/></button><button type="button" aria-label="Current location" onClick={locate} className="grid h-9 w-9 place-items-center rounded bg-white text-teal-900 shadow"><LocateFixed size={17}/></button><button type="button" aria-label="Toggle map fullscreen" onClick={()=>void fullscreen()} className="hidden"/></div><button type="button" aria-label="Fullscreen map" onClick={()=>void fullscreen()} className="absolute right-3 top-3 z-[500] grid h-9 w-9 place-items-center rounded bg-white shadow"><Maximize2 size={16}/></button>{!valid&&<div className="pointer-events-none absolute inset-x-14 top-3 rounded bg-white/90 p-2 text-center text-xs text-slate-600">Add latitude and longitude to sites to see map markers.</div>}</div>
 }
-
-function escapeHtml(value:string){return value.replace(/[&<>'"]/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]||char));}
+function escapeHtml(value:string){return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]||char))}
