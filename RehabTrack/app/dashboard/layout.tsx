@@ -1,2 +1,3 @@
 import DashboardInsights from '@/components/DashboardInsights';
-export default function DashboardLayout({children}:{children:React.ReactNode}){return <><DashboardInsights/>{children}</>}
+import RehabilitationProgressWidget from '@/components/RehabilitationProgressWidget';
+export default function DashboardLayout({children}:{children:React.ReactNode}){return <><DashboardInsights/><RehabilitationProgressWidget/>{children}</>}
